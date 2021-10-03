@@ -54,7 +54,7 @@
 
 #include "splpv1.h"
 #include <string.h>
-
+#include "stdbool.h"
 
 
 
@@ -92,11 +92,69 @@ const char* VERSION = "VERSION";
 const char* B64 = "B64:";
 const char* DISCONNECT_OK = "DISCONNECT_OK";
 
+bool table[128] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+				   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+				   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+				   0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 
+				   1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 
+				   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+				   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+				   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				   0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 0, 0, 0, 0, 0 };
+
+bool tableBase64[128] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 1, 0, 0, 0, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+						  0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 1, 1, 0, 0, 0, 0, 0 };
+bool tableBase64WithEquals[128] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						  0, 0, 0, 1, 0, 0, 0, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+						  0, 1, 0, 0, 0, 1, 1, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+						  1, 1, 1, 0, 0, 0, 0, 0 };
+
+
+void MakeTable(bool* table) {
+
+	for (size_t i = 0; i < 127; i++)
+	{
+		if ((i >= 97 && i <= 122)||( i >= 48 && i<= 57) || (i == 46))
+		{
+			table[i] = true;
+		}
+		else {
+			table[i] = false;
+		}
+	}
+}
+
+
 enum test_status validate_message(struct Message* msg)
 {
 	switch (state)
 	{
 	case INIT:
+		
 		if (strcmp(msg->text_message, CONNECT) != 0)
 		{
 			return MESSAGE_INVALID;
@@ -196,16 +254,18 @@ enum test_status validate_message(struct Message* msg)
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
-			size_t i;
-			for (i = 9; msg->text_message[i] != ' ' && msg->text_message[i] != '\0'; i++)
+			char* pointer = msg->text_message + 9;
+			for (; *pointer != ' ' && *pointer != '\0';)
 			{
-				if (!((msg->text_message[i] >= 97 && msg->text_message[i] <= 122) || (msg->text_message[i] == '.') || (msg->text_message[i] >= 48 && msg->text_message[i] <= 59)))
+				if (!*(table + *pointer))
 				{
 					state = INIT;
 					return MESSAGE_INVALID;
 				}
+				pointer++;
 			}
-			if (msg->text_message[i] == '\0' || strcmp(msg->text_message + i + 1, GET_DATA)) {
+
+			if (*pointer == '\0' || strcmp(pointer + 1, GET_DATA)) {
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
@@ -218,16 +278,18 @@ enum test_status validate_message(struct Message* msg)
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
-			size_t i;
-			for (i = 9; msg->text_message[i] != ' ' && msg->text_message[i] != '\0'; i++)
+			char* pointer = msg->text_message + 9;
+			for (; *pointer != ' ' && *pointer != '\0';)
 			{
-				if (!((msg->text_message[i] >= 97 && msg->text_message[i] <= 122) || (msg->text_message[i] == '.') || (msg->text_message[i] >= 48 && msg->text_message[i] <= 59)))
+				if (!*(table + *pointer))
 				{
 					state = INIT;
 					return MESSAGE_INVALID;
 				}
+				pointer++;
 			}
-			if (msg->text_message[i] == '\0' || strcmp(msg->text_message + i + 1, GET_FILE)) {
+
+			if (*pointer == '\0' || strcmp(pointer + 1, GET_FILE)) {
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
@@ -241,16 +303,19 @@ enum test_status validate_message(struct Message* msg)
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
-			size_t i;
-			for (i = 12; msg->text_message[i] != ' ' && msg->text_message[i] != '\0'; i++)
+
+			char* pointer = msg->text_message + 12;
+			for (; *pointer != ' ' && *pointer != '\0';)
 			{
-				if (!((msg->text_message[i] >= 97 && msg->text_message[i] <= 122) || (msg->text_message[i] == '.') || (msg->text_message[i] >= 48 && msg->text_message[i] <= 59)))
+				if (!*(table + *pointer))
 				{
 					state = INIT;
 					return MESSAGE_INVALID;
 				}
+				pointer++;
 			}
-			if (msg->text_message[i] == '\0' || strcmp(msg->text_message + i + 1, GET_COMMAND)) {
+
+			if (*pointer == '\0' || strcmp(pointer + 1, GET_COMMAND)) {
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
@@ -274,35 +339,32 @@ enum test_status validate_message(struct Message* msg)
 			state = INIT;
 			return MESSAGE_INVALID;
 		}
-		size_t i;
-		for (i = 5; msg->text_message[i + 2] != '\0'; i++)
+		char* initialPointer = msg->text_message + 5;
+		char* pointer = msg->text_message + 5;
+		for (; *(pointer + 2) != '\0';)
 		{
-			if (!((msg->text_message[i] >= 97 && msg->text_message[i] <= 122) || (msg->text_message[i] >= 65 && msg->text_message[i] <= 90)
-				|| (msg->text_message[i] >= 48 && msg->text_message[i] <= 57) || (msg->text_message[i] == 43) || (msg->text_message[i] == 47)))
+			if (!*(tableBase64 + *pointer))
 			{
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
+			pointer++;
 		}
 
-		if (!((msg->text_message[i] >= 97 && msg->text_message[i] <= 122) || (msg->text_message[i] >= 65
-			&& msg->text_message[i] <= 90) || (msg->text_message[i] >= 48 && msg->text_message[i] <= 57)
-			|| (msg->text_message[i] == 43) || (msg->text_message[i] == 47)))
+		if (!*(tableBase64 + *pointer))
 		{
-			if (!(msg->text_message[i] == '=' && msg->text_message[i + 1] == 61))
+			if (!(*pointer == '=' && *(pointer + 1) == 61))
 			{
 				state = INIT;
 				return MESSAGE_INVALID;
 			}
 		}
-		else if (!((msg->text_message[i + 1] >= 97 && msg->text_message[i + 1] <= 122) || (msg->text_message[i + 1] >= 65
-			&& msg->text_message[i + 1] <= 90) || (msg->text_message[i + 1] >= 48 && msg->text_message[i + 1] <= 57)
-			|| (msg->text_message[i + 1] == 61) || (msg->text_message[i + 1] == 43) || (msg->text_message[i + 1] == 47)))
+		else if (!*(tableBase64WithEquals + *(pointer + 1)))
 		{
 			state = INIT;
 			return MESSAGE_INVALID;
 		}
-		if ((i - 3) % 4 != 0)
+		if ((pointer + 2 - initialPointer) % 4 != 0)
 		{
 			state = INIT;
 			return MESSAGE_INVALID;
