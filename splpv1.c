@@ -119,34 +119,20 @@ bool tableBase64[128] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						  1, 1, 1, 0, 0, 0, 0, 0 };
+
 bool tableBase64WithEquals[128] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						  0, 0, 0, 1, 0, 0, 0, 1, 1, 1,
-						  1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
-						  0, 1, 0, 0, 0, 1, 1, 1, 1, 1,
-						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-						  1, 0, 0, 0, 0, 0, 0, 1, 1, 1,
-						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-						  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-						  1, 1, 1, 0, 0, 0, 0, 0 };
-
-
-void MakeTable(bool* table) {
-
-	for (size_t i = 0; i < 127; i++)
-	{
-		if ((i >= 97 && i <= 122)||( i >= 48 && i<= 57) || (i == 46))
-		{
-			table[i] = true;
-		}
-		else {
-			table[i] = false;
-		}
-	}
-}
+									0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+									0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+									0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+									0, 0, 0, 1, 0, 0, 0, 1, 1, 1,
+									1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+									0, 1, 0, 0, 0, 1, 1, 1, 1, 1,
+									1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+									1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+									1, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+									1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+									1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+									1, 1, 1, 0, 0, 0, 0, 0 };
 
 
 enum test_status validate_message(struct Message* msg)
@@ -154,7 +140,7 @@ enum test_status validate_message(struct Message* msg)
 	switch (state)
 	{
 	case INIT:
-		
+
 		if (strcmp(msg->text_message, CONNECT) != 0)
 		{
 			return MESSAGE_INVALID;
@@ -167,11 +153,14 @@ enum test_status validate_message(struct Message* msg)
 		return MESSAGE_VALID;
 	case CONNECTING:
 		//A<-B CONNECT_OK 3
+		//return MESSAGE_INVALID;
+
 		if (strcmp(msg->text_message, CONNECT_OK) != 0)
 		{
 			state = INIT;
 			return MESSAGE_INVALID;
 		}
+		
 		if (msg->direction != B_TO_A)
 		{
 			state = INIT;
@@ -182,26 +171,21 @@ enum test_status validate_message(struct Message* msg)
 		break;
 	case CONNECTED:
 		//A->B GET_VER 4
+		//A->B GET_DATA 5
+		//A->B GET_FILE 5
+		//A->B GET_COMMAND 5
+		//A->B GET_B64 6
+		//A->B DISCONNECTS 7
 
 		if (msg->direction != A_TO_B)
 		{
 			state = INIT;
 			return MESSAGE_INVALID;
 		}
-		if (strcmp(msg->text_message, GET_VER) == 0)
-		{
-			state = WAITING_VER;
-			return MESSAGE_VALID;
-		}
-
+		
 		if (strcmp(msg->text_message, GET_DATA) == 0 || strcmp(msg->text_message, GET_FILE) == 0 || strcmp(msg->text_message, GET_COMMAND) == 0)
 		{
 			state = WAITING_DATA;
-			return MESSAGE_VALID;
-		}
-		if (strcmp(msg->text_message, GET_B64) == 0)
-		{
-			state = WAITING_B64_DATA;
 			return MESSAGE_VALID;
 		}
 		if (strcmp(msg->text_message, DISCONNECT) == 0)
@@ -209,16 +193,30 @@ enum test_status validate_message(struct Message* msg)
 			state = DISCONNECTING;
 			return MESSAGE_VALID;
 		}
+		if (strcmp(msg->text_message, GET_B64) == 0)
+		{
+			state = WAITING_B64_DATA;
+			return MESSAGE_VALID;
+		}
+		if (strcmp(msg->text_message, GET_VER) == 0)
+		{
+			state = WAITING_VER;
+			return MESSAGE_VALID;
+		}
+		
 		return MESSAGE_INVALID;
-		//A->B GET_DATA 5
-		//A->B GET_FILE 5
-		//A->B GET_COMMAND 5
-		//A->B GET_B64 6
-		//A->B DISCONNECTS 7
+		
 		break;
 	case WAITING_VER:
 		//A<-B VERSION
 		//return MESSAGE_INVALID;
+
+		if (msg->direction != B_TO_A)
+		{
+			state = INIT;
+			return MESSAGE_INVALID;
+		}
+
 		if (strncmp(msg->text_message, VERSION, 7) == 0)
 		{
 			if (msg->text_message[7] != ' ') {
@@ -243,6 +241,8 @@ enum test_status validate_message(struct Message* msg)
 		}
 		break;
 	case WAITING_DATA:
+		//A<-B CMD data CMD
+
 		if (msg->direction != B_TO_A)
 		{
 			state = INIT;
@@ -322,9 +322,11 @@ enum test_status validate_message(struct Message* msg)
 			state = CONNECTED;
 			return MESSAGE_VALID;
 		}
-		//A<-B CMD data CMD
+
 		break;
 	case WAITING_B64_DATA:
+		//A<-B B64 
+
 		if (msg->direction != B_TO_A)
 		{
 			state = INIT;
@@ -371,11 +373,11 @@ enum test_status validate_message(struct Message* msg)
 		}
 		state = CONNECTED;
 		return MESSAGE_VALID;
-		//A<-B B64 
 		break;
 	case DISCONNECTING:
 		//A<-B DISCONNECT_OK 1
 		//A<-B CONNECT_OK 3
+
 		if (strcmp(msg->text_message, DISCONNECT_OK) != 0)
 		{
 			state = INIT;
@@ -392,8 +394,6 @@ enum test_status validate_message(struct Message* msg)
 	default:
 		break;
 	}
-
-	// TODO: Implement me
 
 	return MESSAGE_VALID;
 }
